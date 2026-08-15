@@ -15,6 +15,7 @@ Proton 仿真的是 Windows,Steam 仿真的是发行环境 —— 游戏离 Stea
 | 文档 | 内容 |
 |---|---|
 | [requirements.md](requirements.md) | **需求文档**:产品愿景、用户画像、用户故事、功能/非功能需求、验收标准 |
+| [implementation-plan.md](implementation-plan.md) | **实现方案/施工图**:工程决策、M1-M4 文件级施工图、黄金快照测试、命令卡 |
 | [exebox-design.md](exebox-design.md) | **设计文档**(草案 v1,未实现):使命/清单 schema/架构/行为规范/里程碑 |
 | [research-alternatives.md](research-alternatives.md) | **竞品调研**(2026-08):全景对照 + 精确生态位 + 空白矩阵 + 造轮子结论 |
 | [proton-structure.md](proton-structure.md) | 三层目录模型、prefix 解剖、dosdevices、注册表、硬性要求与坑 |
