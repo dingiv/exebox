@@ -77,10 +77,19 @@ tags m1–m4 全部有效;事故复盘见 [lessons-forkbomb.md](lessons-forkbomb
 - [ ] FR-10 `exebox doctor <slug>`(体检+修复建议,诊断手册产品化)
 - [ ] MO3 前台等待保真(按 prefix 关联 wineserver 存活判定)
 
-**v1.3 走向用户(两天)**
-- [ ] 命名定稿(影响包名/EXEBOX_HOME/目录,越早越好)
-- [ ] 发布:PyPI/uvx 一键安装 + README 英文版
-- [ ] 非游戏程序验收(requirements 开放问题 #3:选一个有安装器+注册表+DLL 依赖的 Windows 工具走全流程)
+**v1.3 走向用户 ✅ 已完成(2026-08-16)**
+- [x] 命名定稿:**exebox**(PyPI 可用、零迁移)
+- [x] 发布准备:pyproject 1.3.0 完整元数据/MIT License/README.en.md;
+  uv build 产物隔离验证可装可跑;**PyPI 上传暂缓**(按用户决定,仓库安装即可)
+- [x] 非游戏验收三连(U1 迁移者画像端到端):
+  - 7-Zip(自家安装器/无参数静默):装→CLI 打包功能验证(209B 压缩包);
+    发现 26.x 弃用 Inno,/VERYSILENT 被拒 —— install.args 需按安装器家族选参
+  - Notepad++(NSIS /S):静默装→launch 存活→收割干净
+  - **VS Code User Setup(重型 Inno/225MB)**:/VERYSILENT 静默装→
+    11 个 Electron 进程/6.4GB RSS→bg 会话同寿→kill 零残活→doctor 6 项 ok
+- [x] schema 新增 install.args(安装器参数)+ 测试
+- [x] 边界发现:codex desktop(ChatGPT Desktop)为 MS Store/MSIX 分发,
+  无传统 .exe —— 商店分发形态明确落在 exebox 射程外(以 VS Code 补重型样本)
 
 **v2 GUI(排期另定)**
 - [ ] 技术选型 spike(textual vs PySide,各做一个箱列表原型)
