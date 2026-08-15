@@ -71,10 +71,21 @@ class ProtonRunner:
         return env
 
     def build_command(self, manifest: GameManifest) -> list[str]:
-        """[proton 脚本, verb, exe, *args] —— 清单里是什么就是什么。"""
+        """[proton 脚本, verb, exe, *args] —— exe 尽量以 ./相对 形式传递。
+
+        实测教训(2026-08-15,PvZ):exe 传绝对路径时 wine 会构造带引号的
+        Windows 命令行,PopCap DRM 外壳对其 GetCommandLine 做字符串手术转发
+        时切歪,真实游戏收到变形的 -changedir 而 fatal。
+        三张黄金配方(start-*.sh)全部用 ./相对 形式,这里对齐。
+        """
+        try:
+            rel = manifest.exe.relative_to(manifest.game_dir)
+            exe_arg = f"./{rel}"
+        except ValueError:
+            exe_arg = str(manifest.exe)  # exe 不在 cwd 下,只能绝对
         return [
             str(self._proton.proton_script),
             manifest.verb,
-            str(manifest.exe),
+            exe_arg,
             *manifest.args,
         ]

@@ -43,7 +43,7 @@ def test_golden_pvz(runner, proton):
     )
     env = runner.build_environment(m, base_env=BASE_ENV)
     cmd = runner.build_command(m)
-    assert cmd == [str(proton.proton_script), "run", "/games/pvz/PlantsVsZombies.exe"]
+    assert cmd == [str(proton.proton_script), "run", "./PlantsVsZombies.exe"]  # 黄金:./相对形态
     assert env["STEAM_COMPAT_DATA_PATH"] == "/games/pvz-exp-prefix"
     assert env["STEAM_COMPAT_CLIENT_INSTALL_PATH"] == str(STEAM)
     assert env["PATH"].startswith(str(proton.path / "files" / "bin") + ":/usr/bin:/bin")
@@ -63,7 +63,7 @@ def test_golden_ra2(runner, proton):
     )
     env = runner.build_environment(m, base_env=BASE_ENV)
     cmd = runner.build_command(m)
-    assert cmd == [str(proton.proton_script), "run", str(gdir / "gamemd.exe")]
+    assert cmd == [str(proton.proton_script), "run", "./gamemd.exe"]
     assert env["STEAM_COMPAT_DATA_PATH"] == "/steam/compatdata/2229850"
     assert env["SteamAppId"] == "2229850"  # 非零才注入
     assert env["SteamGameId"] == "2229850"
@@ -87,7 +87,7 @@ def test_golden_mo3(runner, proton):
     cmd = runner.build_command(m)
     assert cmd == [
         str(proton.proton_script), "run",
-        str(gdir / "MentalOmegaClient.exe"), "-SPAWN",
+        "./MentalOmegaClient.exe", "-SPAWN",
     ]
     # PATH 顺序:游戏目录 → proton bin → 原 PATH
     p = env["PATH"].split(":")
@@ -129,6 +129,26 @@ def test_command_passes_args_verbatim(runner, proton):
         args=["-SPAWN", "-CD", "-LOG"], verb="waitforexitandrun",
     )
     assert runner.build_command(m) == [
-        str(proton.proton_script), "waitforexitandrun", "/g/x.exe",
+        str(proton.proton_script), "waitforexitandrun", "./x.exe",
         "-SPAWN", "-CD", "-LOG",
     ]
+
+
+def test_exe_outside_game_dir_stays_absolute(runner, proton):
+    """exe 不在 cwd 下时只能绝对路径(相对会让 wine 解析到别处)。"""
+    m = GameManifest(
+        name="x", exe=Path("/elsewhere/tool.exe"), proton="x",
+        prefix=Path("/p"), game_dir=Path("/g"),
+    )
+    assert runner.build_command(m) == [
+        str(proton.proton_script), "run", "/elsewhere/tool.exe",
+    ]
+
+
+def test_nested_exe_relative_form(runner, proton):
+    """嵌套子目录的 exe 也要 ./ 前缀(不带引号的朴素形态)。"""
+    m = GameManifest(
+        name="x", exe=Path("/g/bin/sub/tool.exe"), proton="x",
+        prefix=Path("/p"), game_dir=Path("/g"),
+    )
+    assert runner.build_command(m)[2] == "./bin/sub/tool.exe"

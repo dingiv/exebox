@@ -235,6 +235,12 @@ cwd = manifest.game_dir          # 绝对路径,启动前校验 is_dir(),否则 
 Popen(cwd=cwd)                   # umu_run.py:742 同款:显式钉住,不依赖默认继承
 ```
 
+**exe 参数形态契约**(M2 实测血案):exe 在 game_dir 内时,命令行必须传
+`./相对` 形式而非绝对路径 —— 绝对路径会让 wine 构造带引号的 Windows 命令行,
+PopCap DRM 外壳对其 GetCommandLine() 做字符串手术转发时切歪,真实游戏收到
+变形的 -changedir 而 fatal "invalid arguments"。fatal 弹框进程也是"活着"的,
+验收时必须用 CPU 占用区分真跑(>50%)与卡报错框(~0%)。
+
 ### 6.3 进程管理(umu_run.py:693-747 移植)
 
 1. `prctl(PR_SET_CHILD_SUBREAPER, 1)`(ctypes;argtypes 精确
