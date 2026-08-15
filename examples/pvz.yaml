@@ -1,0 +1,10 @@
+# 植物大战僵尸(2009 原版)—— 直调 proton,复用现役 prefix
+# 放到 ~/Games/exebox/pvz/game.yaml 即被 exebox 识别
+name: Plants vs Zombies
+exe: ./PlantsVsZombies.exe
+proton: Proton - Experimental
+prefix: /home/div/Documents/codes/games/pvz-exp-prefix
+game_dir: /home/div/Documents/codes/games/pvz/Plants_Vs_Zombies_V1.0.0.1051_EN
+notes: >
+  PopCap 引擎要求 cwd=游戏目录(按相对路径找 main.pak)。
+  原版 DRM 会把真实游戏解包到 C:\ProgramData\PopCap Games\ 再启动,属正常现象。

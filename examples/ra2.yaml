@@ -1,0 +1,9 @@
+# 红警2 尤里复仇(Steam 版)—— 复用 Steam 托管 prefix(只读策略)
+name: "C&C: Red Alert 2 - Yuri's Revenge"
+exe: ./gamemd.exe
+proton: Proton - Experimental
+prefix: /home/div/.local/share/Steam/steamapps/compatdata/2229850
+game_dir: /home/div/.local/share/Steam/steamapps/common/Command & Conquer Red Alert II
+notes: >
+  路径含空格 —— 全链 list 传参,禁 shell=True(exebox 保证)。
+  想玩原版 RA2 把 exe 换成 ./game.exe。

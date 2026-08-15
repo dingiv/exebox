@@ -1,7 +1,37 @@
 [project]
 name = "exebox"
 version = "0.1.0"
-description = "Add your description here"
+description = "wine/proton 的前端:声明式清单管理 Windows 程序 —— 安装 exe、管理 exe、启动 exe"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0.3",
+    "rich>=15.0.0",
+    "typer>=0.27.1",
+]
+
+[project.scripts]
+exebox = "exebox.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["exebox"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: 真机端到端测试(需要本机三款游戏与 Proton 在位)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"

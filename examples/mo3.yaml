@@ -1,0 +1,13 @@
+# 心灵终结 MO3 —— umu 风格 prefix + PATH 注入 + DLL 覆盖
+name: Mental Omega 3
+exe: ./MentalOmegaClient.exe
+proton: Proton - Experimental
+prefix: /home/div/Games/mo3
+game_dir: /home/div/Games/mo3/drive_c/Program Files (x86)/Mental Omega
+dll_overrides: "ddraw=n,b"
+path_append:
+  - /home/div/Games/mo3/drive_c/Program Files (x86)/Mental Omega
+notes: >
+  启动链 MentalOmegaClient→clientdx→Syringe→gamemd;mono 靠 PATH 解析相对名,
+  故 path_append 必需。prefix 的 pfx 是自指符号链接(umu 布局),exebox 两种布局都认。
+  依赖既有修复:Resources/ClientDefinitions.ini 的绝对路径、ddraw.ini renderer=opengl。
