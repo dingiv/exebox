@@ -242,6 +242,10 @@ Popen(cwd=cwd)                   # umu_run.py:742 同款:显式钉住,不依赖�
 2. `Popen(start_new_session=True)` —— 自立会话
 3. SIGINT/SIGTERM 处理器:扫 `/proc/*/status` PPid 建树,BFS 收集后代,逐个 kill
    (ProcessLookupError 容忍)—— **只打自己的树,永不 pkill wineserver**
+   ⚠ 收割目标是 **os.getpid() 的全部后代**(而非 proton 脚本的子树):
+   xalia 会话层会 double-fork 游戏进程出 proton 子树,但我们设了 subreaper,
+   被遗弃者会过继给 exebox 本身 —— "我的后代"才是完备集合(M2 实测教训,
+   首版曾漏杀 wine loader)。wait 返回后同样清扫一遍兜底。
 4. `proc.wait()` 收退出码;负值翻译为"被信号 N 杀死"
 5. stdout/stderr → `<箱>/logs/<ISO时间戳>.launch.log`,路径进 LaunchResult
 
