@@ -49,6 +49,7 @@ class InstallConfig:
     """清单的 install 段(仅 install 命令消费,launch 忽略)。"""
 
     source: Path
+    args: list[str] = field(default_factory=list)  # 安装器参数(如 Inno 的 /VERYSILENT)
     steps: list[InstallStep] = field(default_factory=list)
 
 

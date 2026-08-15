@@ -157,3 +157,17 @@ def test_clean_paths_no_warnings(tmp_path):
     write(tmp_path, {"exe": "/games/tool/run.exe"})
     m = load(tmp_path / "game.yaml")
     assert m.warnings == []
+
+
+def test_install_args_parsed(tmp_path):
+    write(tmp_path, {"exe": "/a/b.exe", "install": {
+        "source": "/setup.exe", "args": ["/VERYSILENT", "/NORESTART"]}})
+    m = load(tmp_path / "game.yaml")
+    assert m.install.args == ["/VERYSILENT", "/NORESTART"]
+
+
+def test_install_args_type_rejected(tmp_path):
+    write(tmp_path, {"exe": "/a/b.exe", "install": {
+        "source": "/s", "args": "not-a-list"}})
+    with pytest.raises(ManifestError, match="install.args"):
+        load(tmp_path / "game.yaml")

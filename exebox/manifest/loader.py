@@ -24,7 +24,7 @@ _ROOT_KEYS = {
     "name", "exe", "proton", "prefix", "game_dir", "env", "dll_overrides",
     "args", "game_id", "path_append", "verb", "notes", "install",
 }
-_INSTALL_KEYS = {"source", "steps"}
+_INSTALL_KEYS = {"source", "args", "steps"}
 _STEP_KEYS = {
     "description", "type", "command", "key", "value", "value_name", "value_type",
     "reg_hive", "reg_arch", "src", "dst",
@@ -171,6 +171,9 @@ def _load_install(raw_install, box_path: Path, path: Path) -> InstallConfig | No
         raise ManifestError(f"清单 {path.name}: install 段必须有 'source'")
 
     source = _resolve_against(box_path, raw_install["source"])
+    iargs = raw_install.get("args", [])
+    if not isinstance(iargs, list) or not all(isinstance(a, str) for a in iargs):
+        raise ManifestError(f"清单 {path.name}: install.args 必须是字符串列表")
     steps_raw = raw_install.get("steps", [])
     if not isinstance(steps_raw, list):
         raise ManifestError(f"清单 {path.name}: install.steps 必须是列表")
@@ -178,7 +181,7 @@ def _load_install(raw_install, box_path: Path, path: Path) -> InstallConfig | No
     steps: list[InstallStep] = []
     for i, s in enumerate(steps_raw):
         steps.append(_load_step(s, i, box_path, path))
-    return InstallConfig(source=source, steps=steps)
+    return InstallConfig(source=source, args=list(iargs), steps=steps)
 
 
 def _load_step(raw_step, index: int, box_path: Path, path: Path) -> InstallStep:

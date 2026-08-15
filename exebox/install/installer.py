@@ -78,7 +78,7 @@ class Installer:
             exe_arg = f"./{rel}"
         except ValueError:
             exe_arg = str(source)
-        cmd = [str(plan.proton.proton_script), manifest.verb, exe_arg]
+        cmd = [str(plan.proton.proton_script), manifest.verb, exe_arg, *manifest.install.args]
         log.write(f"\n$ {' '.join(cmd)}\n")
         log.flush()
         t0 = time.monotonic()
