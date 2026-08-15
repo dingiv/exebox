@@ -51,3 +51,13 @@ def test_setup_subreaper_smoke():
     # 本机 Linux 3.4+ 应当成功;失败也不炸(降级路径)
     result = process.setup_subreaper()
     assert isinstance(result, bool)
+
+
+def test_zombies_are_not_descendants(tmp_path):
+    """僵尸进程不算活后代(State=Z),否则等待循环会死等一具尸体。"""
+    d = tmp_path / "200"
+    d.mkdir()
+    (d / "status").write_text("Name:\tsleep\nState:\tZ (exited)\nPPid:\t100\n",
+                              encoding="utf-8")
+    make_fake_proc(tmp_path, {100: 1, 300: 100})
+    assert process.descendants_from_proc(tmp_path, 100) == {300}  # 200 被跳过

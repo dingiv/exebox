@@ -34,11 +34,12 @@ class InstallStep:
     description: str
     type: str
     command: list[str] | None = None
-    key: str | None = None
-    value: str | None = None
-    value_type: str | None = None  # "SZ" | "DWORD"
-    reg_hive: str | None = None  # "HKLM" | "HKCU"
-    reg_arch: str | None = None  # "32" | "64"
+    key: str | None = None  # reg_add: 键路径(不含 hive)
+    value: str | None = None  # reg_add: 值数据 / 通用备注值
+    value_name: str | None = None  # reg_add: 值名(如 "InstallPath")
+    value_type: str | None = None  # "SZ"(默认) | "DWORD"
+    reg_hive: str | None = None  # "HKLM"(默认) | "HKCU"
+    reg_arch: str | None = None  # None(不加) | "32" | "64"
     src: Path | None = None
     dst: Path | None = None
 
@@ -71,6 +72,7 @@ class GameManifest:
     # 以下为加载时推导,不来自 YAML
     box_path: Path = Path()  # 清单所在目录
     slug: str = ""  # 箱目录名(稳定 ID)
+    warnings: list[str] = field(default_factory=list)  # 加载期告警(非致命)
 
 
 @dataclass

@@ -77,13 +77,18 @@ def test_expected_prefix_version_extracts_constant(tmp_path):
 
 
 def test_is_managed(tmp_path):
-    steamlike = tmp_path / "compatdata" / "123"
+    steamlike = tmp_path / "steamapps" / "compatdata" / "123"
     steamlike.mkdir(parents=True)
     assert manager.is_managed(steamlike) is True
     plain = tmp_path / "box"
     plain.mkdir()
     assert manager.is_managed(plain) is False
+    # config_info 不是托管依据:proton 初始化任何 prefix 都会写它(实测教训)
     with_cfg = tmp_path / "cfg"
     with_cfg.mkdir()
     (with_cfg / "config_info").write_text("x", encoding="utf-8")
-    assert manager.is_managed(with_cfg) is True
+    assert manager.is_managed(with_cfg) is False
+    # 只有 compatdata 没有 steamapps 父级也不算(名字撞车)
+    bare = tmp_path / "compatdata" / "123"
+    bare.mkdir(parents=True)
+    assert manager.is_managed(bare) is False

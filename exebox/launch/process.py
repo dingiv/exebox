@@ -13,6 +13,9 @@ from pathlib import Path
 
 PR_SET_CHILD_SUBREAPER = 36  # Linux 3.4+
 
+# 最近一次转发给子树的信号(供上层如实报告"被信号杀死")
+last_signal: int | None = None
+
 
 def setup_subreaper() -> bool:
     """设置本进程为子收割者。失败返回 False(降级仅告警,不致命)。
@@ -40,6 +43,8 @@ def descendants_from_proc(proc_root: Path, root_pid: int) -> set[int]:
     """扫描 <proc_root>/<pid>/status 的 PPid 字段,返回 root_pid 的全部后代。
 
     proc_root 可注入(测试用假树);root_pid 自身不在结果里。
+    僵尸(State=Z)视为已死 —— 它们只是还没被收尸,/proc 里仍占着 PPid,
+    若当活人等会死循环(实测教训:subreaper 收养的孤儿无人 wait 即成永尸)。
     竞态容忍:status 消失即跳过。
     """
     parents: dict[int, int] = {}
@@ -50,11 +55,16 @@ def descendants_from_proc(proc_root: Path, root_pid: int) -> set[int]:
             continue
         status = entry / "status"
         try:
+            ppid: int | None = None
             for line in status.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("State:") and line.split()[1].startswith("Z"):
+                    ppid = None  # 僵尸:不算活人
+                    break
                 if line.startswith("PPid:"):
                     ppid = int(line.split()[1])
-                    parents[int(entry.name)] = ppid
                     break
+            if ppid is not None:
+                parents[int(entry.name)] = ppid
         except (OSError, ValueError, IndexError):
             continue
     # BFS:父 → 子
@@ -98,6 +108,8 @@ def install_signal_handlers() -> None:
     """
 
     def _forward(signum: int, _frame) -> None:
+        global last_signal
+        last_signal = signum
         kill_descendants_of_self(signum)
 
     signal.signal(signal.SIGINT, _forward)

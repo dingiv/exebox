@@ -26,7 +26,7 @@ _ROOT_KEYS = {
 }
 _INSTALL_KEYS = {"source", "steps"}
 _STEP_KEYS = {
-    "description", "type", "command", "key", "value", "value_type",
+    "description", "type", "command", "key", "value", "value_name", "value_type",
     "reg_hive", "reg_arch", "src", "dst",
 }
 _DEFAULT_PROTON = "Proton - Experimental"
@@ -116,7 +116,22 @@ def load(path: Path) -> GameManifest:
         install=install,
         box_path=box_path,
         slug=slug,
+        warnings=_path_warnings(exe, game_dir, prefix),
     )
+
+
+def _path_warnings(exe: Path, game_dir: Path | None, prefix: Path) -> list[str]:
+    """非致命的路径告警(老安装器/个别引擎对空格与非 ASCII 敏感)。"""
+    out: list[str] = []
+    for label, p in (("exe", exe), ("game_dir", game_dir), ("prefix", prefix)):
+        if p is None:
+            continue
+        s = str(p)
+        if " " in s:
+            out.append(f"{label} 路径含空格(通常无碍,少数老安装器可能出错): {s}")
+        if any(ord(c) > 127 for c in s):
+            out.append(f"{label} 路径含非 ASCII 字符(个别程序对 Unicode 路径敏感): {s}")
+    return out
 
 
 def load_box(box_path: Path) -> GameManifest:
@@ -193,6 +208,7 @@ def _load_step(raw_step, index: int, box_path: Path, path: Path) -> InstallStep:
         command=list(command) if command else None,
         key=raw_step.get("key"),
         value=None if raw_step.get("value") is None else str(raw_step["value"]),
+        value_name=raw_step.get("value_name"),
         value_type=raw_step.get("value_type"),
         reg_hive=raw_step.get("reg_hive"),
         reg_arch=raw_step.get("reg_arch"),

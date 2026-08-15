@@ -98,8 +98,10 @@ def check_version(prefix: Path, proton: ProtonVersion) -> str:
 
 
 def is_managed(prefix: Path) -> bool:
-    """检测 prefix 是否被外部托管(Steam compatdata)—— 托管者只读。"""
-    prefix = Path(prefix)
-    if (prefix / "config_info").is_file():
-        return True
-    return "compatdata" in prefix.parts
+    """检测 prefix 是否被 Steam 托管(steamapps/compatdata/<appid> 形态)。
+
+    注意:config_info 不是依据 —— 任何 proton 初始化 prefix 都会写它
+    (实测 pvz-exp-prefix 与 ~/Games/mo3 均有),只认路径形态。
+    """
+    parts = Path(prefix).parts
+    return "compatdata" in parts and "steamapps" in parts

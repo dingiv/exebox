@@ -144,3 +144,16 @@ def test_non_mapping_rejected(tmp_path):
     write(tmp_path, "- just\n- a\n- list\n")
     with pytest.raises(ManifestError, match="映射"):
         load(tmp_path / "game.yaml")
+
+
+def test_path_warnings_collected(tmp_path):
+    write(tmp_path, {"exe": "/games/My Game 工具/tool.exe"})
+    m = load(tmp_path / "game.yaml")
+    assert any("空格" in w for w in m.warnings)
+    assert any("ASCII" in w for w in m.warnings)
+
+
+def test_clean_paths_no_warnings(tmp_path):
+    write(tmp_path, {"exe": "/games/tool/run.exe"})
+    m = load(tmp_path / "game.yaml")
+    assert m.warnings == []

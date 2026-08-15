@@ -254,6 +254,13 @@ PopCap DRM 外壳对其 GetCommandLine() 做字符串手术转发时切歪,真�
    首版曾漏杀 wine loader)。wait 返回后同样清扫一遍兜底。
 4. `proc.wait()` 收退出码;负值翻译为"被信号 N 杀死"
 5. stdout/stderr → `<箱>/logs/<ISO时间戳>.launch.log`,路径进 LaunchResult
+6. **引导器模式**(M3 实测 MO3):被跟踪的 exe 可能是引导壳,拉起真身后自己退出,
+   proton run 随之返回 —— 此时真身子代仍在跑,launch 必须继续等子代跑完再收尾,
+   绝不能在 wait 返回后立刻清扫(首版"兜底清扫"曾把刚出生的客户端全树杀掉)。
+   等待时把 /proc 里的僵尸(State=Z)视为已死,否则会死等一具尸体;
+   launch 结束时恢复调用方原有信号处理器,不永久劫持宿主(pytest/timeout 曾因此杀不死)。
+   已知限制:xalia 会话可能把子树移出我方族谱,MO3 下 exebox 会在引导壳退出后
+   数秒返回而游戏无恙;前台等待的完全保真(按 prefix 关联 wineserver)留 M4。
 
 ### 6.4 prefix 脚手架(umu setup_pfx L79-121 移植)
 
