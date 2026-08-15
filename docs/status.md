@@ -45,29 +45,33 @@
 - [x] **M3** install+棘轮 ✅(tag m3;含生命周期三连修复)
 - [x] **M4** 打磨 ✅(tag m4;--bg/ps/告警/README/全局错误)
 
-## 四、验收欠账清单(v1.1 必须补)
+## 四、验收欠账清单(v1.1 已全部销账 2026-08-15 晚)
 
-| # | 欠账 | 原因 |
+| # | 结果 | 备注 |
 |---|---|---|
-| D1 | 交互向导 E2E | fork 炸弹期间无法做交互测试 |
-| D2 | reg_add 真机验证(Westwood 键复刻场景) | 未安排 |
-| D3 | `--bg` 清场后复测(装→玩→kill 全链) | 同 D1 |
-| D4 | 双游戏并行互不误伤 | 只做了串行 |
+| D1 交互向导 E2E | ✅ | 管道喂答案 → 清单生成 → 全新 prefix → **原版 RA2(game.exe)首测成功**;附带发现:向导 Proton 列表 compat 优先,默认 1 号是 GE 而非官方(记 v1.2 待议) |
+| D2 reg_add 真机 | ✅ | Westwood 三件套落 Wow6432Node(REG_SZ+DWORD),与晨间手抄作业逐字节等价;附带发现:CLI 缺 steps-only 入口(记 v1.2) |
+| D3 --bg 全链 | ✅ | 启动→CPU 77%→kill→树清零→bg 进程退场;**挖出并修复真 bug:TERM 免疫的 wine 陪跑致等待循环挂死(现 SIGKILL 升级 + 30s 耐心上限,含回归测试)** |
+| D4 并行误伤 | ✅ | pvz+ra2 双活,杀 pvz 后 ra2 的 exebox 与游戏进程分毫未伤 |
+
+git 历史整理 ✅:9 条同名 m3 提交(炸弹空转产物)squash 为 1 条并改写信息,
+tags m1–m4 全部有效;事故复盘见 [lessons-forkbomb.md](lessons-forkbomb.md)。
 
 ## 五、已知限制(如实)
 
 1. MO3 等引导器程序:exebox 在引导壳退出后数秒返回(xalia 把子树移出族谱),游戏无恙;前台等待完全保真未做
 2. GUI 安装器兼容不保证(PopCap 安装器实测 exit 0 不落文件);便携拷贝路线已验证
-3. git 历史有 5 条同名 m3 提交(fork 炸弹空转产物)—— 建议整理,待用户批准
 
 ## 六、下一阶段规划
 
-**v1.1 补验收(半天)**
-- [ ] D1–D4 四项欠账逐一销账
-- [ ] git 历史整理(squash 重复 m3 提交,征得同意后)
-- [ ] 清理期事故复盘归档(docs/lessons-forkbomb.md)
+**v1.1 补验收 ✅ 已完成**
+- [x] D1–D4 四项欠账逐一销账(详见第四节)
+- [x] git 历史整理(9→1 squash,需 force-push 同步 remote,待用户确认)
+- [x] 事故复盘归档(docs/lessons-forkbomb.md)
+- [x] 新增:顽固子代 SIGKILL 升级(真 bug 修复 + 回归测试,63 tests)
 
 **v1.2 完形(一至两天)**
+- [ ] 向导默认 Proton 改为官方 Experimental(若存在);CLI steps-only 安装入口
 - [ ] FR-4 清单 schema 版本字段 + 迁移策略
 - [ ] FR-15 `exebox prefix reset|shell`(类 docker exec 体验)
 - [ ] FR-10 `exebox doctor <slug>`(体检+修复建议,诊断手册产品化)
