@@ -127,3 +127,34 @@ def kill_descendants_of_self(sig: int) -> int:
         except (ProcessLookupError, PermissionError):
             continue
     return sent
+
+
+def prefix_session_pids(data_path: str, proc_root: Path | None = None) -> set[int]:
+    """扫描 /proc/*/environ,返回携带 STEAM_COMPAT_DATA_PATH=<data_path> 的活进程。
+
+    用途:引导器型程序(MO3)的子树会被 xalia 移出我方进程族谱,
+    descendants() 看不到 —— 按 prefix 环境变量关联才能等到真身结束(等待保真)。
+    僵尸不算活;environ 不可读(hidepid 等)时该进程被跳过,静默降级。
+    """
+    root = proc_root or Path("/proc")
+    needle = f"STEAM_COMPAT_DATA_PATH={data_path}\0".encode()
+    out: set[int] = set()
+    if not root.is_dir():
+        return out
+    for entry in root.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            environ = (entry / "environ").read_bytes()
+        except OSError:
+            continue
+        if needle not in environ:
+            continue
+        try:
+            status = (entry / "status").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            status = ""
+        if "\nState:\tZ" in status or status.startswith("State:\tZ"):
+            continue  # 僵尸不算活
+        out.add(int(entry.name))
+    return out

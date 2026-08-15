@@ -116,20 +116,38 @@ class Launcher:
             process.install_signal_handlers()
             exit_code = proc.wait()
             # 引导器模式(M3 实测 MO3):被跟踪的 exe 是引导壳,拉起真身后自己退出,
-            # proton run 只等被请求的 exe 就返回 —— 但真身子代已被 subreaper 过继
-            # 给我们,继续等它们跑完(期间 Ctrl-C 照常收割全树)。
-            # v1.1 修正:wine 陪跑服务可能无视 SIGTERM,等待必须有出口 ——
-            # 已被信号收割或超过耐心上限时,SIGKILL 清场并退出,绝不无限等。
+            # proton run 只等被请求的 exe 就返回。真身在哪?
+            #   a) 被 subreaper 过继给我们 → descendants 可见
+            #   b) 被 xalia 移出族谱 → 按 prefix 会话(STEAM_COMPAT_DATA_PATH)关联
+            # 等待语义(v1.2 保真):
+            #   - prefix 会话存活 = 真游戏在跑 → 无限等(数小时是正常的)
+            #   - 被信号收割 → SIGKILL 全部(含会话),退出
+            #   - 无会话的孤儿残留(陪跑服务)→ 30s 耐心后 SIGKILL
             grace = 0.0
-            while process.descendants(os.getpid()):
-                if process.last_signal is not None or grace >= 30.0:
+            while True:
+                kids = process.descendants(os.getpid())
+                session = process.prefix_session_pids(str(manifest.prefix))
+                session.discard(os.getpid())
+                if not kids and not session:
+                    break
+                if process.last_signal is not None:
                     process.kill_descendants_of_self(signal.SIGKILL)
+                    for pid in session:
+                        try:
+                            os.kill(pid, signal.SIGKILL)
+                        except (ProcessLookupError, PermissionError):
+                            pass
                     time.sleep(0.5)
-                    stubborn = process.descendants(os.getpid())
+                    stubborn = process.descendants(os.getpid()) | \
+                        process.prefix_session_pids(str(manifest.prefix))
                     if stubborn:
                         self.notes.append(
                             f"⚠ {len(stubborn)} 个进程拒绝退出(D 状态?),已放弃等待"
                         )
+                    break
+                if kids and not session and grace >= 30.0:
+                    process.kill_descendants_of_self(signal.SIGKILL)
+                    self.notes.append("⚠ 孤儿残留超时,已 SIGKILL 清场")
                     break
                 time.sleep(0.5)
                 grace += 0.5

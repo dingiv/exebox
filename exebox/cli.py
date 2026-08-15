@@ -62,17 +62,25 @@ def install_cmd(
     import_mode: bool = typer.Option(
         False, "--import", help="交互向导但跳过安装器(存量程序导入)"
     ),
+    steps_only: bool = typer.Option(
+        False, "--steps-only",
+        help="只执行 install.steps(不跑安装器)—— 修复重放/注册表补写场景",
+    ),
 ) -> None:
     """安装一个程序:向导生成清单 → (可选)跑安装器与步骤。"""
     if run_installer and skip_installer:
         err_console.print("[red]✗[/red] --run-installer 与 --skip-installer 互斥")
+        raise typer.Exit(1)
+    if steps_only and manifest_file is None:
+        err_console.print("[red]✗[/red] --steps-only 需要配合 --manifest")
         raise typer.Exit(1)
 
     config = Config.from_env()
     launcher = Launcher(config)
 
     if manifest_file is not None:
-        _install_from_manifest(config, launcher, manifest_file, slug, run_installer)
+        _install_from_manifest(config, launcher, manifest_file, slug, run_installer,
+                               steps_only)
         return
 
     data = _wizard(source, import_mode, config)
@@ -96,13 +104,16 @@ def install_cmd(
         _do_install(launcher, manifest_path)
 
 
-def _do_install(launcher: Launcher, manifest_path: Path) -> None:
+def _do_install(launcher: Launcher, manifest_path: Path, run_installer: bool = True) -> None:
     from exebox.install.installer import Installer
 
     manifest = load(manifest_path)
-    console.print("[bold]安装中…[/bold](GUI 安装器请在弹出的窗口里操作)")
+    console.print(
+        "[bold]安装中…[/bold](GUI 安装器请在弹出的窗口里操作)"
+        if run_installer else "[bold]执行安装步骤(跳过安装器)…[/bold]"
+    )
     try:
-        Installer(launcher).install(manifest)
+        Installer(launcher).install(manifest, run_installer=run_installer)
     except ExeboxError as e:
         err_console.print(f"[red]✗ 安装失败:[/red] {e}")
         raise typer.Exit(1) from e
@@ -111,7 +122,7 @@ def _do_install(launcher: Launcher, manifest_path: Path) -> None:
 
 def _install_from_manifest(
     config: Config, launcher: Launcher, manifest_file: Path, slug: str | None,
-    run_installer: bool,
+    run_installer: bool, steps_only: bool = False,
 ) -> None:
     src = Path(manifest_file).expanduser()
     try:
@@ -125,7 +136,9 @@ def _install_from_manifest(
     (box / "game.yaml").write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     console.print(f"[green]✓[/green] 已注册 {name} → {box / 'game.yaml'}")
     RegistryStore(config.library_root).sync()
-    if run_installer:
+    if steps_only:
+        _do_install(launcher, box / "game.yaml", run_installer=False)
+    elif run_installer:
         _do_install(launcher, box / "game.yaml")
 
 
@@ -147,7 +160,12 @@ def _wizard(source: str | None, import_mode: bool, config: Config) -> dict:
     console.print("可用 Proton:")
     for i, pv in enumerate(protons, 1):
         console.print(f"  [{i}] {pv.name}  [dim]{pv.version_str}[/dim]")
-    pi = typer.prompt("选择 Proton", default="1", type=int)
+    from exebox.proton.resolver import DEFAULT_PROTON_NAME
+
+    default_idx = next(
+        (i for i, pv in enumerate(protons, 1) if pv.name == DEFAULT_PROTON_NAME), 1
+    )
+    pi = typer.prompt("选择 Proton", default=str(default_idx), type=int)
     proton_name = protons[max(0, min(pi, len(protons)) - 1)].name
 
     game_dir = Path(typer.prompt(
@@ -358,6 +376,82 @@ def _launch_bg(slug: str, manifest, env_opts: list[str]) -> None:
         f"[green]✓[/green] 后台启动 {slug} pid={proc.pid}"
         f"(exebox ps 查看;输出追加于 {_short(bg_log)})"
     )
+
+
+prefix_app = typer.Typer(help="prefix 生命周期(reset/shell)")
+app.add_typer(prefix_app, name="prefix")
+
+
+@prefix_app.command("reset")
+def prefix_reset(
+    slug: str = typer.Argument(..., help="箱目录名"),
+    yes: bool = typer.Option(False, "--yes", help="跳过确认(非交互脚本用)"),
+) -> None:
+    """删掉假电脑重建(清单与游戏文件保留)—— wine 排障头号动作。"""
+    from exebox.prefix.lifecycle import reset as reset_prefix
+
+    manifest = _find_manifest(slug)
+    if not yes and not typer.confirm(
+        f"将删除 {_short(manifest.prefix)} 的全部内容"
+        f"(清单与游戏文件保留,注册表/运行库全部重来),继续?"
+    ):
+        raise typer.Exit(1)
+    try:
+        actions = reset_prefix(manifest.prefix, manifest.box_path)
+    except ExeboxError as e:
+        err_console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]✓[/green] prefix 已重建({len(actions)} 项脚手架)")
+    console.print("下次 launch 时 Proton 会重新初始化(首次启动稍慢)")
+
+
+@prefix_app.command("shell")
+def prefix_shell(
+    slug: str = typer.Argument(..., help="箱目录名"),
+) -> None:
+    """进入箱内 shell:与 launch 完全同款环境与 cwd,可手动 proton run 任意程序。"""
+    import os as _os
+    import subprocess as _sp
+
+    manifest = _find_manifest(slug)
+    launcher = Launcher(Config.from_env())
+    plan = launcher.plan(manifest)
+    console.print(
+        f"[dim]箱内 shell —— Proton: {plan.proton.name} | prefix: {_short(manifest.prefix)}\n"
+        f"cwd: {plan.cwd}\n"
+        f"可直接用:proton 脚本 = {plan.proton.proton_script} run <exe>\n"
+        f"exit 退出[/dim]"
+    )
+    proc = _sp.run(
+        [_os.environ.get("SHELL", "/bin/bash")], env=plan.env, cwd=plan.cwd, check=False
+    )
+    raise typer.Exit(proc.returncode)
+
+
+@app.command("doctor")
+def doctor_cmd(
+    slug: str = typer.Argument(..., help="箱目录名"),
+) -> None:
+    """体检:逐项检查并给修复建议(只诊断,不自动改)。"""
+    from exebox.doctor import diagnose, worst_status
+
+    manifest = _find_manifest(slug)
+    results = diagnose(manifest)
+    icon = {"ok": "[green]✓[/green]", "warn": "[yellow]![/yellow]", "fail": "[red]✗[/red]"}
+    table = Table(title=None, box=None, pad_edge=False)
+    table.add_column("CHECK", style="cyan")
+    table.add_column("STATE")
+    table.add_column("DETAIL", overflow="fold")
+    table.add_column("建议", style="dim", overflow="fold")
+    for r in results:
+        table.add_row(r.name, icon[r.status], r.detail, r.suggestion)
+    console.print(table)
+    worst = worst_status(results)
+    if worst == "fail":
+        err_console.print("[red]存在 fail 项[/red],按建议修复后再启动")
+        raise typer.Exit(1)
+    if worst == "warn":
+        console.print("[yellow]存在 warn 项[/yellow](通常可启动,出错时优先排查)")
 
 
 @app.command("ps")
