@@ -118,11 +118,22 @@ class Launcher:
             # 引导器模式(M3 实测 MO3):被跟踪的 exe 是引导壳,拉起真身后自己退出,
             # proton run 只等被请求的 exe 就返回 —— 但真身子代已被 subreaper 过继
             # 给我们,继续等它们跑完(期间 Ctrl-C 照常收割全树)。
-            while True:
-                if not process.descendants(os.getpid()):
+            # v1.1 修正:wine 陪跑服务可能无视 SIGTERM,等待必须有出口 ——
+            # 已被信号收割或超过耐心上限时,SIGKILL 清场并退出,绝不无限等。
+            grace = 0.0
+            while process.descendants(os.getpid()):
+                if process.last_signal is not None or grace >= 30.0:
+                    process.kill_descendants_of_self(signal.SIGKILL)
+                    time.sleep(0.5)
+                    stubborn = process.descendants(os.getpid())
+                    if stubborn:
+                        self.notes.append(
+                            f"⚠ {len(stubborn)} 个进程拒绝退出(D 状态?),已放弃等待"
+                        )
                     break
                 time.sleep(0.5)
-            # 全子代退出后的兜底清扫(此时通常空集;清的是 Svchost 类陪跑残留)
+                grace += 0.5
+            # 兜底清扫(空集即无操作)
             process.kill_descendants_of_self(signal.SIGTERM)
             if process.last_signal is not None:
                 exit_code = -process.last_signal  # 如实报告"被信号 N 杀死"

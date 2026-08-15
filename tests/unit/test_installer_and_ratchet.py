@@ -167,3 +167,46 @@ def test_installer_creates_missing_game_dir(tmp_path):
     Installer(launcher).install(manifest)
     assert manifest.game_dir.is_dir()
     assert manifest.exe.exists()
+
+
+def test_signaled_launcher_kills_stubborn_descendants(tmp_path):
+    """被 SIGTERM 收割时,无视 TERM 的顽固子代要被 SIGKILL 清掉,launch 不得挂死。"""
+    import subprocess
+    import sys
+    import time as _t
+
+    build_world(tmp_path)
+    mpath = tmp_path / "lib" / "toy" / "game.yaml"
+    # fake proton:派生一个 trap 了 TERM 的顽固 sleep,然后自己退出(引导壳模式)
+    proton_dir = tmp_path / "steam" / "steamapps" / "common" / "FakeProton"
+    proton_dir.joinpath("proton").write_text(
+        '#!/bin/bash\nCURRENT_PREFIX_VERSION="9.9-1"\n'
+        "(bash -c \"trap '' TERM; sleep 60\") &\nexit 0\n",
+        encoding="utf-8",
+    )
+    code = f"""
+import os, signal, sys, time, threading
+sys.path.insert(0, {str(Path.cwd())!r})
+from exebox.config import Config
+from exebox.launch.launcher import Launcher
+from exebox.manifest.loader import load
+from exebox.proton.resolver import ProtonResolver
+m = load({str(mpath)!r})
+m.exe.write_text('x')
+# launch 安装信号处理器后,延迟自伤模拟外部收割
+threading.Thread(
+    target=lambda: (time.sleep(0.5), os.kill(os.getpid(), signal.SIGTERM)),
+    daemon=True,
+).start()
+cfg = Config({str(tmp_path / 'lib')!r}, {str(tmp_path / 'steam')!r})
+r = Launcher(cfg, ProtonResolver(cfg.proton_home)).launch(m)
+print('RC', r.exit_code)
+"""
+    t0 = _t.monotonic()
+    out = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True,
+        timeout=20, check=False,
+    )
+    duration = _t.monotonic() - t0
+    assert "RC -15" in out.stdout, out.stdout + out.stderr  # 如实报告被杀
+    assert duration < 15, f"顽固子代导致挂等 {duration:.1f}s"
